@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     const apiKeys = [
         "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4",
-        "CHAVE_API_V2_AQUI",
-        "CHAVE_API_V3_AQUI"
+        "CAIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
+        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ"
     ];
     let currentKeyIndex = 0;
     const channelId = "UCfxuVyjFhkf4gj_HyCnxLRg";
