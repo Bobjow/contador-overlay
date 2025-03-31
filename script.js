@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 🔄 Modificação 1: Adicione 3 chaves
+    // 🔄 Chaves mantidas na mesma estrutura
     const apiKeys = [
-        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ", // Chave 1
-        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",                      // Chave 2
-        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4"                      // Chave 3
+        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ",
+        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
+        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4"
     ];
     
     const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
@@ -12,50 +12,59 @@ document.addEventListener('DOMContentLoaded', () => {
     const messages = document.querySelectorAll('.msg');
     const gemText = document.querySelector('#messageBox .msg:last-child');
     
-    // 🔄 Modificação 2: Variável de controle de chaves
+    // 🔄 Variáveis originais mantidas
     let keyIndex = 0;
     let isLiveActive = false;
+    let errorCount = { 403: 0, other: 0 };
 
-    // ✅ Sua função original intacta
     const rotateMessages = () => {
         messages.forEach(msg => msg.classList.remove('active'));
         messages[currentMessage].classList.add('active');
         currentMessage = (currentMessage + 1) % 3;
     };
 
-    // 🔄 Modificação 3: Sistema de rotação de chaves
+    // ✅ Rotação melhorada mantendo sua lógica
     const rotateKey = () => {
+        const oldKey = keyIndex;
         keyIndex = (keyIndex + 1) % apiKeys.length;
-        console.log(`Usando chave: ${keyIndex + 1}`);
+        console.log(`Rotacionando para chave: ${keyIndex + 1}`);
+        
+        if(oldKey === apiKeys.length - 1) {
+            errorCount[403] = 0;
+            console.warn("Todas as chaves testadas - Reiniciando ciclo");
+        }
     };
 
-    // 🔄 Modificação 4: Controle de status da live
+    // ✅ getLiveVideoId com tratamento seguro
     const getLiveVideoId = async () => {
         try {
+            console.log(`Usando chave ${keyIndex + 1} (${apiKeys[keyIndex].substr(0, 12)}...)`);
+            
             const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${apiKeys[keyIndex]}`);
             
-            if(response.status === 403) {
+            if(response.status === 403 || response.status === 400) {
+                errorCount[403]++;
                 rotateKey();
-                return null;
+                return await getLiveVideoId(); // Tenta novamente com nova chave
             }
 
             const data = await response.json();
-            return data.items[0]?.id?.videoId || null;
+            return data?.items?.[0]?.id?.videoId || null;
 
         } catch(error) {
-            console.error("Erro:", error);
+            console.error("Erro na busca da live:", error);
+            errorCount.other++;
             return null;
         }
     };
 
-    // ✅ Sua função original com melhorias
+    // ✅ updateLikes com controle refinado
     const updateLikes = async () => {
         try {
             const VIDEO_ID = await getLiveVideoId();
             
             if(!VIDEO_ID) {
                 if(isLiveActive) {
-                    // 🔄 Reset automático quando live termina
                     meta = 100;
                     document.getElementById("progressBar").style.width = "0%";
                     document.getElementById("likeText").textContent = "00000 / 100";
@@ -64,25 +73,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // ⚡ Ativação automática quando live inicia
             if(!isLiveActive) {
                 isLiveActive = true;
-                meta = 100; // Reset da meta
-                console.log("Live detectada - Sistema ativado!");
+                meta = 100;
+                console.log("Live ativa - Sistema reiniciado!");
+                clearInterval(updateInterval);
+                updateInterval = setInterval(updateLikes, 10000);
             }
 
             const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${VIDEO_ID}&key=${apiKeys[keyIndex]}`);
             
             if(statsResponse.status === 403) {
                 rotateKey();
-                return;
+                return updateLikes(); // Repete com nova chave
             }
 
             const statsData = await statsResponse.json();
-            const likes = parseInt(statsData.items[0].statistics.likeCount) || 0;
+            const likes = parseInt(statsData?.items?.[0]?.statistics?.likeCount) || 0;
 
-            // ✅ Sua UI original intacta
-            document.getElementById("progressBar").style.width = `${(likes/meta)*100}%`;
+            // ✅ UI original mantida
+            document.getElementById("progressBar").style.width = `${Math.min((likes/meta)*100, 100)}%`;
             document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
             if(likes >= meta) {
@@ -92,27 +102,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } catch(error) {
-            console.error("Erro geral:", error);
+            console.error("Erro crítico:", error);
+            if(errorCount.other++ > 10) location.reload();
         }
     };
 
-    // 🔄 Modificação 5: Intervalos otimizados
-    let updateInterval = setInterval(() => {
-        updateLikes();
-    }, isLiveActive ? 10000 : 30000); // 10s se live, 30s se offline
-
-    // Monitora status da live para ajustar intervalos
+    // ✅ Intervalos otimizados mantendo sua lógica
+    let updateInterval = setInterval(updateLikes, 30000);
+    
     const checkLiveStatus = () => {
         getLiveVideoId().then(videoId => {
             if(videoId && !isLiveActive) {
                 clearInterval(updateInterval);
                 updateInterval = setInterval(updateLikes, 10000);
+                updateLikes();
             }
         });
     };
 
-    // ✅ Seus intervalos originais mantidos
-    setInterval(checkLiveStatus, 30000); // Verifica live a cada 30s
+    // Seus intervalos originais mantidos
+    setInterval(checkLiveStatus, 30000);
     setInterval(rotateMessages, 5000);
     updateLikes();
     messages[0].classList.add('active');
