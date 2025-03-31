@@ -1,29 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const apiKey = "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4";
+    const apiKeys = [
+        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4", // Chave Primária
+        "SUA_CHAVE_V2_AQUI",  // 👈 Nova chave
+        "SUA_CHAVE_V3_AQUI"   // 👈 Nova chave
+    ];
+    let currentKeyIndex = 0;
     const channelId = "UCfxuVyjFhkf4gj_HyCnxLRg";
     let meta = 100;
     let currentVideoId = null;
     let isLive = false;
     const messages = document.querySelectorAll('.msg');
     const gemText = document.querySelector('#messageBox .msg:last-child');
-    let updateInterval = null; // 👈 Controle do intervalo
+    let updateInterval = null;
+
+    // 👇 Sistema de rotação de chaves
+    const cycleApiKey = () => {
+        currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+        console.log(`Alternando para chave V${currentKeyIndex + 1}`);
+    };
 
     const updateLikes = async () => {
         try {
-            // Primeira verificação: está em live?
-            const liveCheck = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKey}`);
+            const currentKey = apiKeys[currentKeyIndex];
+            const liveCheck = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${currentKey}`);
+            
+            // 👇 Detecta erro de quota
+            if (liveCheck.status === 403) {
+                cycleApiKey();
+                return;
+            }
+
             const liveData = await liveCheck.json();
             
             if (!liveData.items?.length) {
                 if (isLive) {
                     console.log("Live encerrada - parando monitoramento");
-                    clearInterval(updateInterval); // 👈 Para todas as verificações
+                    clearInterval(updateInterval);
                     isLive = false;
                 }
-                return; // 👈 Sai sem fazer mais nada
+                return;
             }
 
-            // 👇 Apenas executa se estiver em live
             isLive = true;
             const videoId = liveData.items[0].id.videoId;
 
@@ -33,7 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 gemText.innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;"> ${meta}`;
             }
 
-            const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKey}`);
+            const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${currentKey}`);
+            
+            // 👇 Verifica erro na segunda chamada
+            if (statsResponse.status === 403) {
+                cycleApiKey();
+                return;
+            }
+
             const statsData = await statsResponse.json();
             const likes = parseInt(statsData.items[0].statistics.likeCount) || 0;
             
@@ -46,36 +70,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } catch(error) {
-            console.log("Erro na API");
+            console.log("Erro geral:", error);
+            cycleApiKey();
         }
     };
 
-    const startMonitoring = () => {
-        // Verificação inicial
-        updateLikes();
-        // Inicia intervalo APENAS se estiver em live
-        if (isLive) {
-            updateInterval = setInterval(updateLikes, 60000); // 👈 1 minuto
-        }
-    };
-
-    const rotateMessages = () => {
-        messages.forEach(msg => msg.classList.remove('active'));
-        messages[currentMessage].classList.add('active');
-        currentMessage = (currentMessage + 1) % 3;
-    };
-
-    // Sistema de detecção inicial
-    const initialCheck = async () => {
-        const liveCheck = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKey}`);
-        const liveData = await liveCheck.json();
-        
-        if (liveData.items?.length) {
-            startMonitoring();
-        }
-    };
-
-    // Inicia verificações
-    initialCheck(); // 👈 Só roda 1 vez no carregamento
-    setInterval(rotateMessages, 5000);
+    // ... (restante do código permanece igual)
 });
