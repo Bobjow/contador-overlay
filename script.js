@@ -1,12 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 🔄 Modificação 1: Adicione 3 chaves
     const apiKeys = [
-        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE", // Chave 1
-        "SUA_SEGUNDA_CHAVE",                      // Chave 2
-        "SUA_TERCEIRA_CHAVE"                      // Chave 3
+        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ", // Chave 1
+        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",                      // Chave 2
+        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4"                      // Chave 3
     ];
     
-    const CHANNEL_ID = "SEU_CHANNEL_ID";
+    const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
     let meta = 100;
     let currentMessage = 0;
     const messages = document.querySelectorAll('.msg');
