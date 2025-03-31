@@ -13,7 +13,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const gemText = document.querySelector('#messageBox .msg:last-child');
     let isLive = false;
 
-    // 👇 Adicionei contador de tentativas
+    // 👇 Declaração da rotateMessages ANTES de ser usada
+    const rotateMessages = () => {
+        messages.forEach(msg => msg.classList.remove('active'));
+        messages[currentMessage].classList.add('active');
+        currentMessage = (currentMessage + 1) % 3;
+        console.log("Mensagem ativada:", currentMessage); // 👈 Novo log de debug
+    };
+
     let attemptCount = 0;
     const MAX_ATTEMPTS = 3;
 
@@ -27,12 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateLikes = async () => {
         try {
-            // 👇 Adicionei timestamp para debug
             console.log(`[${new Date().toLocaleTimeString()}] Iniciando verificação...`);
             
             const liveResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKeys[currentKeyIndex]}`);
             
-            // 👇 Verificação detalhada da resposta
             if(!liveResponse.ok) {
                 console.warn("Erro na resposta LIVE:", liveResponse.status, liveResponse.statusText);
                 cycleApiKey();
@@ -40,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const liveData = await liveResponse.json();
-            console.log("Dados da live:", liveData); // 👈 Log crítico
+            console.log("Dados da live:", liveData);
             
             if (liveData.items?.length > 0) {
                 const videoId = liveData.items[0].id.videoId;
@@ -55,21 +60,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const statsData = await statsResponse.json();
-                console.log("Dados de likes:", statsData); // 👈 Log crítico
+                console.log("Dados de likes:", statsData);
                 
-                // 👇 Verificação reforçada dos likes
                 const rawLikes = statsData.items[0]?.statistics?.likeCount || "0";
                 const likes = parseInt(rawLikes) || 0;
                 console.log(`Likes (raw: ${rawLikes} | parsed: ${likes})`);
 
-                // 👇 Atualização forçada com requestAnimationFrame
                 requestAnimationFrame(() => {
                     document.getElementById("progressBar").style.width = `${(likes/meta)*100}%`;
                     document.getElementById("likeText").textContent = 
                         `${likes.toString().padStart(5, '0')} / ${meta}`;
                 });
 
-                // 👇 Condição de meta melhorada
                 if (likes >= meta) {
                     const newMeta = meta + 100;
                     console.log(`Meta atingida! ${meta} -> ${newMeta}`);
@@ -84,8 +86,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Reduza o intervalo temporariamente para testes (1 minuto)
-    setInterval(updateLikes, 60000); // 👈 Alterado para 60 segundos
+    // Verificação de elementos (adicionei isso)
+    if(messages.length === 0) {
+        console.error("Nenhum elemento .msg encontrado!");
+    } else {
+        console.log(`${messages.length} mensagens encontradas`);
+    }
+
+    setInterval(updateLikes, 60000);
     setInterval(rotateMessages, 5000);
     updateLikes();
     messages[0].classList.add('active');
