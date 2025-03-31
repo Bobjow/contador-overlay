@@ -12,57 +12,70 @@ document.addEventListener('DOMContentLoaded', () => {
     const gemText = document.querySelector('#messageBox .msg:last-child');
     let keyIndex = 0;
     let currentVideoId = null;
-    let checkInterval = 600000;
+    let isLiveActive = false;
+    let checkTimer = null;
 
-    // Rotação de mensagens (intacta)
+    // Rotação de mensagens
     const rotateMessages = () => {
         messages.forEach(msg => msg.classList.remove('active'));
         messages[currentMessage].classList.add('active');
         currentMessage = (currentMessage + 1) % 3;
     };
 
-    // 🔄 Sistema de verificação com retentativa imediata
-    const checkLive = async (retry = false) => {
+    // Sistema de verificação inteligente
+    const checkLive = async () => {
+        if(checkTimer) clearTimeout(checkTimer);
+        
         try {
             const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${apiKeys[keyIndex]}`);
             
+            // Tratamento de erros
             if(response.status === 403) {
-                console.log(`Rotacionando chave (atual: ${keyIndex})`);
                 keyIndex = (keyIndex + 1) % apiKeys.length;
-                if(retry) return; // Evita loop infinito
-                return checkLive(true); // Retentativa imediata
+                checkTimer = setTimeout(checkLive, 30000); // Retry rápido
+                return;
             }
 
             const data = await response.json();
-            currentVideoId = data.items[0]?.id?.videoId || currentVideoId;
-            
-            checkInterval = currentVideoId ? 1800000 : Math.min(checkInterval * 1.5, 3600000);
-            
+            const newVideoId = data.items[0]?.id?.videoId;
+
+            if(newVideoId) {
+                // Live detectada
+                isLiveActive = true;
+                currentVideoId = newVideoId;
+                document.getElementById("status").textContent = "LIVE ATIVA!";
+                checkTimer = setTimeout(checkLive, 300000); // Verifica a cada 5min
+                updateLikes();
+            } else {
+                // Nenhuma live
+                isLiveActive = false;
+                currentVideoId = null;
+                document.getElementById("status").textContent = "AGUARDANDO LIVE...";
+                checkTimer = setTimeout(checkLive, 900000); // Verifica a cada 15min
+            }
+
         } catch(error) {
-            console.error("Erro na verificação:", error);
-            checkInterval = Math.min(checkInterval * 2, 3600000);
-        } finally {
-            setTimeout(checkLive, checkInterval);
+            console.error("Erro geral:", error);
+            checkTimer = setTimeout(checkLive, 600000);
         }
     };
 
-    // ⚡ Atualização de likes com retry automático
-    const updateLikes = async (retry = false) => {
-        if(!currentVideoId) return;
+    // Atualização de likes (só quando ao vivo)
+    const updateLikes = async () => {
+        if(!isLiveActive) return;
 
         try {
             const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${currentVideoId}&key=${apiKeys[keyIndex]}`);
             
             if(statsResponse.status === 403) {
-                console.log(`Rotacionando chave (atual: ${keyIndex})`);
                 keyIndex = (keyIndex + 1) % apiKeys.length;
-                if(retry) return;
-                return updateLikes(true);
+                return;
             }
 
             const statsData = await statsResponse.json();
             const likes = parseInt(statsData.items[0]?.statistics?.likeCount) || 0;
 
+            // Atualização da interface
             document.getElementById("progressBar").style.width = `${(likes/meta)*100}%`;
             document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
@@ -77,13 +90,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 🎯 Restante do código mantido
+    // Controles de interface
     document.getElementById('progressBar').addEventListener('click', () => {
-        checkInterval = 600000;
         checkLive();
+        document.getElementById("status").textContent = "VERIFICANDO...";
     });
 
-    setInterval(updateLikes, 60000);
+    // Inicialização
+    setInterval(updateLikes, 60000); // Atualiza likes a cada 1min
     setInterval(rotateMessages, 5000);
     checkLive();
     messages[0].classList.add('active');
