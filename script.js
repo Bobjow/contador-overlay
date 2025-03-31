@@ -1,19 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 🔑 Adicione SUAS 3 API Keys (mantenha a ordem)
     const apiKeys = [
         "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4",
         "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
         "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ"
     ];
     
-    const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng"; // 👇 Use seu ID real aqui
+    const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
     let meta = 100;
     let currentMessage = 0;
     const messages = document.querySelectorAll('.msg');
     const gemText = document.querySelector('#messageBox .msg:last-child');
     let keyIndex = 0;
     let currentVideoId = null;
-    let checkInterval = 600000; // 10min inicial
+    let checkInterval = 600000;
 
     // Rotação de mensagens (intacta)
     const rotateMessages = () => {
@@ -22,21 +21,21 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMessage = (currentMessage + 1) % 3;
     };
 
-    // 🔄 Sistema inteligente de verificação
-    const checkLive = async () => {
+    // 🔄 Sistema de verificação com retentativa imediata
+    const checkLive = async (retry = false) => {
         try {
             const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${apiKeys[keyIndex]}`);
             
             if(response.status === 403) {
+                console.log(`Rotacionando chave (atual: ${keyIndex})`);
                 keyIndex = (keyIndex + 1) % apiKeys.length;
-                checkInterval = 600000; // Reset para 10min
-                return;
+                if(retry) return; // Evita loop infinito
+                return checkLive(true); // Retentativa imediata
             }
 
             const data = await response.json();
             currentVideoId = data.items[0]?.id?.videoId || currentVideoId;
             
-            // Ajusta intervalo dinamicamente
             checkInterval = currentVideoId ? 1800000 : Math.min(checkInterval * 1.5, 3600000);
             
         } catch(error) {
@@ -47,16 +46,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ⚡ Atualização otimizada de likes
-    const updateLikes = async () => {
+    // ⚡ Atualização de likes com retry automático
+    const updateLikes = async (retry = false) => {
         if(!currentVideoId) return;
 
         try {
             const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${currentVideoId}&key=${apiKeys[keyIndex]}`);
             
             if(statsResponse.status === 403) {
+                console.log(`Rotacionando chave (atual: ${keyIndex})`);
                 keyIndex = (keyIndex + 1) % apiKeys.length;
-                return;
+                if(retry) return;
+                return updateLikes(true);
             }
 
             const statsData = await statsResponse.json();
@@ -76,15 +77,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 🎯 Gatilhos manuais para verificação imediata
+    // 🎯 Restante do código mantido
     document.getElementById('progressBar').addEventListener('click', () => {
         checkInterval = 600000;
         checkLive();
     });
 
-    // ⚙️ Intervalos conservadores
-    setInterval(updateLikes, 60000); // 1min
+    setInterval(updateLikes, 60000);
     setInterval(rotateMessages, 5000);
-    checkLive(); // Inicia ciclo
+    checkLive();
     messages[0].classList.add('active');
 });
