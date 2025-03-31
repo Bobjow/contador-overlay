@@ -17,19 +17,23 @@ document.addEventListener('DOMContentLoaded', () => {
         currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
     };
 
-    // Função principal (inalterada da sua versão original)
+    // 👇 Alteração 1: Adicionei options com política de referência
+    const fetchOptions = {
+        referrerPolicy: "strict-origin-when-cross-origin"
+    };
+
     const updateLikes = async () => {
         try {
-            const liveResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKeys[currentKeyIndex]}`);
+            // 👇 Alteração 2: Adicionei options nas chamadas fetch
+            const liveResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKeys[currentKeyIndex]}`, fetchOptions);
             const liveData = await liveResponse.json();
             
             if (liveData.items?.length > 0) {
                 const videoId = liveData.items[0].id.videoId;
-                const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKeys[currentKeyIndex]}`);
+                const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKeys[currentKeyIndex]}`, fetchOptions);
                 const statsData = await statsResponse.json();
                 const likes = parseInt(statsData.items[0].statistics.likeCount) || 0;
                 
-                // Atualização da interface (mantida igual)
                 document.getElementById("progressBar").style.width = `${(likes/meta)*100}%`;
                 document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
@@ -44,18 +48,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Sistema de rotação de mensagens (inalterado)
+    // Restante do código mantido igual
     const rotateMessages = () => {
         messages.forEach(msg => msg.classList.remove('active'));
         messages[currentMessage].classList.add('active');
         currentMessage = (currentMessage + 1) % 3;
     };
 
-    // Intervalos originais
     setInterval(updateLikes, 300000);
     setInterval(rotateMessages, 5000);
     updateLikes();
-    
-    // Garante que a primeira mensagem seja visível
-    messages[0].classList.add('active'); // 👈 Correção crítica
+    messages[0].classList.add('active');
 });
