@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Tratamento de erros
             if(response.status === 403) {
                 keyIndex = (keyIndex + 1) % apiKeys.length;
-                checkTimer = setTimeout(checkLive, 30000); // Retry rápido
+                checkTimer = setTimeout(checkLive, 30000);
                 return;
             }
 
@@ -40,18 +40,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const newVideoId = data.items[0]?.id?.videoId;
 
             if(newVideoId) {
-                // Live detectada
                 isLiveActive = true;
                 currentVideoId = newVideoId;
                 document.getElementById("status").textContent = "LIVE ATIVA!";
-                checkTimer = setTimeout(checkLive, 300000); // Verifica a cada 5min
+                checkTimer = setTimeout(checkLive, 300000);
                 updateLikes();
             } else {
-                // Nenhuma live
                 isLiveActive = false;
                 currentVideoId = null;
                 document.getElementById("status").textContent = "AGUARDANDO LIVE...";
-                checkTimer = setTimeout(checkLive, 900000); // Verifica a cada 15min
+                checkTimer = setTimeout(checkLive, 900000);
             }
 
         } catch(error) {
@@ -60,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Atualização de likes (só quando ao vivo)
+    // Atualização de likes
     const updateLikes = async () => {
         if(!isLiveActive) return;
 
@@ -75,7 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const statsData = await statsResponse.json();
             const likes = parseInt(statsData.items[0]?.statistics?.likeCount) || 0;
 
-            // Atualização da interface
             document.getElementById("progressBar").style.width = `${(likes/meta)*100}%`;
             document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
@@ -90,14 +87,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Controles de interface
+    // Feedback visual ao clicar
     document.getElementById('progressBar').addEventListener('click', () => {
+        // Cria elemento de feedback
+        const feedback = document.createElement('div');
+        feedback.textContent = "Atualizando... ⌛";
+        feedback.style.position = 'fixed';
+        feedback.style.bottom = '20px';
+        feedback.style.left = '50%';
+        feedback.style.transform = 'translateX(-50%)';
+        feedback.style.backgroundColor = 'rgba(0,0,0,0.7)';
+        feedback.style.color = '#00ff88';
+        feedback.style.padding = '10px 20px';
+        feedback.style.borderRadius = '5px';
+        feedback.style.zIndex = '1000';
+        feedback.id = 'live-feedback';
+        
+        document.body.appendChild(feedback);
+        
+        // Atualiza verificações
         checkLive();
         document.getElementById("status").textContent = "VERIFICANDO...";
+        
+        // Remove feedback após 2 segundos
+        setTimeout(() => {
+            const feedbackElement = document.getElementById('live-feedback');
+            if(feedbackElement) {
+                document.body.removeChild(feedbackElement);
+            }
+        }, 2000);
     });
 
     // Inicialização
-    setInterval(updateLikes, 60000); // Atualiza likes a cada 1min
+    setInterval(updateLikes, 60000);
     setInterval(rotateMessages, 5000);
     checkLive();
     messages[0].classList.add('active');
