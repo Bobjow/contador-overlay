@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiKey = "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4";
     const channelId = "UCfxuVyjFhkf4gj_HyCnxLRg";
     let meta = 100;
+    let currentVideoId = null; // 👈 NOVA VARIÁVEL
     let currentMessage = 0;
     const messages = document.querySelectorAll('.msg');
     const gemText = document.querySelector('#messageBox .msg:last-child');
@@ -13,6 +14,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (liveData.items?.length > 0) {
                 const videoId = liveData.items[0].id.videoId;
+
+                // 👇 NOVA VERIFICAÇÃO PARA RESET
+                if (videoId !== currentVideoId) {
+                    currentVideoId = videoId;
+                    meta = 100;
+                    gemText.innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;"> ${meta}`;
+                }
+
                 const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKey}`);
                 const statsData = await statsResponse.json();
                 const likes = parseInt(statsData.items[0].statistics.likeCount) || 0;
@@ -33,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rotateMessages = () => {
         messages.forEach(msg => msg.classList.remove('active'));
         messages[currentMessage].classList.add('active');
-        currentMessage = (currentMessage + 1) % 3; // 👈 Número fixo (3 mensagens)
+        currentMessage = (currentMessage + 1) % 3;
     };
 
     setInterval(updateLikes, 300000);
