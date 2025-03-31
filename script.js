@@ -1,86 +1,81 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // 🔄 Array com 3 chaves (mantenha sua estrutura)
     const apiKeys = [
-        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4",
-        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
-        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ"
+        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE", // Key 1
+        "SUA_KEY_2", // Key 2
+        "SUA_KEY_3"  // Key 3
     ];
     
-    const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
+    const CHANNEL_ID = "SEU_CHANNEL_ID"; 
     let meta = 100;
-    let keyIndex = 0;
-    let currentVideoId = null;
+    let currentMessage = 0;
+    const messages = document.querySelectorAll('.msg');
+    const gemText = document.querySelector('#messageBox .msg:last-child');
+    let keyIndex = 0; // 👈 Controle de chaves
 
-    // 🟢 Debug: Mostra chave atual
-    const showKeyStatus = () => {
-        console.log(`Usando chave ${keyIndex + 1}/${apiKeys.length}: ${apiKeys[keyIndex].slice(0, 15)}...`);
+    // ✅ Rotação de mensagens INTACTA
+    const rotateMessages = () => {
+        messages.forEach(msg => msg.classList.remove('active'));
+        messages[currentMessage].classList.add('active');
+        currentMessage = (currentMessage + 1) % 3;
     };
 
-    // 🔄 Sistema aprimorado de troca de chaves
-    const rotateKey = () => {
-        keyIndex = (keyIndex + 1) % apiKeys.length;
-        console.warn(`Troca para chave ${keyIndex + 1} devido a erro 403`);
-        showKeyStatus();
-    };
-
-    // ✅ Verificação de live com tratamento completo
-    const checkLive = async () => {
+    // 🔄 Função de busca com rotação de chaves
+    const getLiveVideoId = async () => {
         try {
-            showKeyStatus();
             const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${apiKeys[keyIndex]}`);
             
-            console.log(`Status: ${response.status}`, response);
-            
+            // Tratamento de erro 403
             if(response.status === 403) {
-                rotateKey();
-                return checkLive(); // Tenta imediatamente com nova chave
+                keyIndex = (keyIndex + 1) % apiKeys.length; // Troca de chave
+                console.log(`Troca para chave ${keyIndex + 1}`);
+                return null;
             }
 
-            if(!response.ok) {
-                console.error(`Erro HTTP: ${response.status}`);
+            const data = await response.json();
+            return data.items[0]?.id?.videoId || null;
+
+        } catch(error) {
+            console.error("Erro:", error);
+            return null;
+        }
+    };
+
+    // ✅ Atualização original com ajuste de chaves
+    const updateLikes = async () => {
+        try {
+            const VIDEO_ID = await getLiveVideoId();
+            
+            if(!VIDEO_ID) return;
+
+            const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${VIDEO_ID}&key=${apiKeys[keyIndex]}`);
+            
+            if(statsResponse.status === 403) {
+                keyIndex = (keyIndex + 1) % apiKeys.length;
                 return;
             }
 
-            const data = await response.json();
-            currentVideoId = data.items[0]?.id?.videoId;
-            console.log(currentVideoId ? "Live detectada!" : "Nenhuma live ativa");
+            const statsData = await statsResponse.json();
+            const likes = parseInt(statsData.items[0].statistics.likeCount) || 0;
 
-        } catch(error) {
-            console.error("Erro fatal:", error);
-            rotateKey();
-        }
-    };
+            // ✅ Sua UI original
+            document.getElementById("progressBar").style.width = `${(likes/meta)*100}%`;
+            document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
-    // ⚡ Atualização de likes otimizada
-    const updateLikes = async () => {
-        if(!currentVideoId) return;
-
-        try {
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${currentVideoId}&key=${apiKeys[keyIndex]}`);
-            
-            if(response.status === 403) {
-                rotateKey();
-                return updateLikes(); // Retry com nova chave
+            if(likes >= meta) {
+                meta += 100;
+                gemText.innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" 
+                    style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;"> ${meta}`;
             }
 
-            const data = await response.json();
-            const likes = parseInt(data.items[0]?.statistics?.likeCount) || 0;
-            
-            console.log(`Likes atualizados: ${likes}`);
-
-            // Atualize sua UI aqui...
-
         } catch(error) {
-            console.error("Erro nos likes:", error);
-            rotateKey();
+            console.error("Erro geral:", error);
         }
     };
 
-    // 🕒 Intervalos ajustados
-    setInterval(() => {
-        checkLive();
-        if(currentVideoId) updateLikes();
-    }, 30000); // 30 segundos
-
-    // 🔍 Teste inicial
-    checkLive();
+    // ✅ Seus intervalos originais
+    setInterval(updateLikes, 10000);
+    setInterval(rotateMessages, 5000);
+    updateLikes();
+    messages[0].classList.add('active');
 });
