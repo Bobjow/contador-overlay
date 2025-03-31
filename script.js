@@ -1,10 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // 👇 Ordenei as chaves por prioridade (V2 > V3 > V1)
     const apiKeys = [
-        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4",
-        "CAIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
-        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ"
+        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE", // V2 (prioridade máxima)
+        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ", // V3
+        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4"  // V1 (último recurso)
     ];
-    let currentKeyIndex = 0;
+    
+    let currentKeyIndex = 0; // Começa pela V2
     const channelId = "UCfxuVyjFhkf4gj_HyCnxLRg";
     let meta = 100;
     let currentMessage = 0;
@@ -12,25 +14,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const gemText = document.querySelector('#messageBox .msg:last-child');
     let isLive = false;
 
-    // Função para alternar chaves
+    // 👇 Função modificada para evitar ciclos desnecessários
     const cycleApiKey = () => {
-        currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+        if(currentKeyIndex < apiKeys.length - 1) {
+            currentKeyIndex++;
+            console.log(`Alternando para chave V${currentKeyIndex + 1}`);
+        }
     };
 
-    // 👇 Alteração 1: Adicionei options com política de referência
     const fetchOptions = {
         referrerPolicy: "strict-origin-when-cross-origin"
     };
 
     const updateLikes = async () => {
         try {
-            // 👇 Alteração 2: Adicionei options nas chamadas fetch
             const liveResponse = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${apiKeys[currentKeyIndex]}`, fetchOptions);
+            
+            // 👇 Verificação explícita de erro 403
+            if(liveResponse.status === 403) {
+                cycleApiKey();
+                return;
+            }
+
             const liveData = await liveResponse.json();
             
             if (liveData.items?.length > 0) {
                 const videoId = liveData.items[0].id.videoId;
                 const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKeys[currentKeyIndex]}`, fetchOptions);
+                
+                if(statsResponse.status === 403) {
+                    cycleApiKey();
+                    return;
+                }
+
                 const statsData = await statsResponse.json();
                 const likes = parseInt(statsData.items[0].statistics.likeCount) || 0;
                 
@@ -43,12 +59,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch(error) {
-            console.log("Erro detectado, alternando chave...");
+            console.log("Erro geral:", error.message);
             cycleApiKey();
         }
     };
 
-    // Restante do código mantido igual
+    // Resto do código mantido igual
     const rotateMessages = () => {
         messages.forEach(msg => msg.classList.remove('active'));
         messages[currentMessage].classList.add('active');
