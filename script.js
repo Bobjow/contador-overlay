@@ -1,105 +1,68 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Configurações
-    const API_KEYS = [
-        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4",
-        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
-        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ"
-    ];
-    const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
+    const API_KEYS = ["SUA_KEY_1", "SUA_KEY_2", "SUA_KEY_3"]; // 🔑 Suas keys
+    const CHANNEL_ID = "SEU_CHANNEL_ID"; // ID do seu canal
     
-    // Variáveis (mantive todos os nomes originais)
+    // Variáveis
     let meta = 100;
-    let currentMessage = 0;
-    const messages = document.querySelectorAll('.msg');
-    const gemText = document.querySelector('#messageBox .msg:last-child');
     let keyIndex = 0;
     let currentVideoId = null;
-    let isLiveActive = false;
-    let checkTimer = null;
 
-    // Rotação de mensagens (original)
-    const rotateMessages = () => {
-        messages.forEach(msg => msg.classList.remove('active'));
-        messages[currentMessage].classList.add('active');
-        currentMessage = (currentMessage + 1) % 3;
-    };
-
-    // Sistema de verificação (novo)
+    // Verifica se está ao vivo
     const checkLive = async () => {
-        if(checkTimer) clearTimeout(checkTimer);
-        
         try {
             const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${API_KEYS[keyIndex]}`);
             
-            if(response.status === 403) {
-                keyIndex = (keyIndex + 1) % API_KEYS.length;
-                checkTimer = setTimeout(checkLive, 30000);
+            if (!response.ok) {
+                keyIndex = (keyIndex + 1) % API_KEYS.length; // Troca de key em caso de erro
                 return;
             }
 
             const data = await response.json();
-            const newVideoId = data.items[0]?.id?.videoId;
-
-            if(newVideoId) {
-                isLiveActive = true;
-                currentVideoId = newVideoId;
-                checkTimer = setTimeout(checkLive, 300000);
-                updateLikes();
-            } else {
-                isLiveActive = false;
-                currentVideoId = null;
-                checkTimer = setTimeout(checkLive, 900000);
-            }
-
+            currentVideoId = data.items[0]?.id?.videoId;
+            if (currentVideoId) updateLikes(); // Se estiver ao vivo, atualiza likes
+            
         } catch(error) {
-            checkTimer = setTimeout(checkLive, 600000);
+            console.log("Erro ao verificar live:", error);
         }
     };
 
-    // Atualização de likes (original + otimização)
+    // Atualiza os likes
     const updateLikes = async () => {
-        if(!isLiveActive) return;
-
         try {
-            const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${currentVideoId}&key=${API_KEYS[keyIndex]}`);
-            
-            if(statsResponse.status === 403) {
-                keyIndex = (keyIndex + 1) % API_KEYS.length;
-                return;
-            }
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${currentVideoId}&key=${API_KEYS[keyIndex]}`);
+            const data = await response.json();
+            const likes = parseInt(data.items[0].statistics.likeCount) || 0;
 
-            const statsData = await statsResponse.json();
-            const likes = parseInt(statsData.items[0]?.statistics?.likeCount) || 0;
-
-            // Atualização da UI (original)
+            // Atualiza a interface
             document.getElementById("progressBar").style.width = `${(likes/meta)*100}%`;
             document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
-            if(likes >= meta) {
+            // Checa se atingiu a meta
+            if (likes >= meta) {
                 meta += 100;
-                gemText.innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" 
-                    style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;"> ${meta}`;
+                document.querySelector("#messageBox .msg:last-child").innerHTML = 
+                    `META: <img src="gemas-png.png" class="gem-glow gem-icon"
+                        style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;">
+                    ${meta}`;
             }
 
         } catch(error) {
-            console.error("Erro:", error);
+            console.log("Erro ao buscar likes:", error);
         }
     };
 
-    // Feedback (nova funcionalidade)
+    // Feedback ao clicar na barra
     document.getElementById('progressBar').addEventListener('click', () => {
         const feedback = document.createElement('div');
         feedback.id = "live-feedback";
         feedback.textContent = "ATUALIZANDO...";
         document.body.appendChild(feedback);
         setTimeout(() => feedback.remove(), 2000);
-        
-        checkLive();
+        checkLive(); // Força nova verificação
     });
 
-    // Inicialização (original)
-    setInterval(updateLikes, 60000);
-    setInterval(rotateMessages, 5000);
-    checkLive();
-    messages[0].classList.add('active');
+    // Intervalos
+    setInterval(checkLive, 30000); // Verifica a cada 30 segundos
+    setInterval(updateLikes, 10000); // Atualiza likes a cada 10 segundos
 });
