@@ -1,11 +1,11 @@
-/* Fonte */
+/* ========== CONFIGURAÇÕES GERAIS ========== */
 @font-face {
     font-family: 'Burbank Big Condensed';
     src: url('BurbankBigCondensed.ttf') format('truetype');
 }
 
-/* Estrutura Principal */
-#likeCounter {
+/* ========== CONTADOR PRINCIPAL ========== */
+#contadorLikes {
     font-family: 'Burbank Big Condensed', sans-serif;
     font-size: 30px;
     color: white;
@@ -25,8 +25,8 @@
     overflow: hidden;
 }
 
-/* Barra de Progresso */
-#progressBarContainer {
+/* ========== BARRA DE PROGRESSO ========== */
+#containerBarra {
     position: absolute;
     top: 0;
     left: 0;
@@ -35,36 +35,36 @@
     background: rgba(255,255,255,0.1);
 }
 
-#progressBar {
+#barraProgresso {
     height: 100%;
     width: 0%;
     background: #ff0000;
     transition: width 0.5s ease;
-    cursor: pointer; /* 👈 Adicionei interatividade */
-    user-select: none; /* 👈 Evita seleção de texto */
+    cursor: pointer;
+    user-select: none;
 }
 
-/* Emoji Animado */
-#likeSymbol {
+/* ========== EMOJI ANIMADO ========== */
+#emojiLike {
     font-size: 80px;
     position: relative;
     left: -30px;
-    animation: moveLike 2s infinite;
+    animation: animacaoLike 2s infinite;
     z-index: 2;
 }
 
-@keyframes moveLike {
+@keyframes animacaoLike {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
 }
 
-/* Texto dos Likes */
-#likeTextContainer {
+/* ========== TEXTO E NÚMEROS ========== */
+#containerTexto {
     margin-left: -10px;
     z-index: 1;
 }
 
-#likeText {
+#textoLikes {
     font-size: 60px;
     overflow: hidden;
     letter-spacing: 4px;
@@ -72,8 +72,8 @@
     top: 25px;
 }
 
-/* Mensagens */
-#messageBox {
+/* ========== MENSAGENS FLUTUANTES ========== */
+#caixaMensagens {
     position: absolute;
     top: 7%;
     left: 125px;
@@ -81,7 +81,7 @@
     height: 60px;
 }
 
-.msg {
+.mensagem {
     position: absolute;
     opacity: 0;
     transition: opacity 1s ease-in-out !important;
@@ -92,13 +92,13 @@
     pointer-events: none;
 }
 
-.msg.active {
+.mensagem.ativa {
     opacity: 1;
     transition-delay: 0.3s;
 }
 
-/* Estilo da imagem */
-.gem-icon {
+/* ========== ELEMENTOS VISUAIS ========== */
+.icone-gema {
     width: 45px !important;
     height: 45px !important;
     vertical-align: middle;
@@ -107,37 +107,13 @@
     object-fit: contain;
 }
 
-/* Animação do brilho colorido */
-.gem-glow {
-    animation: rainbow-glow 3s infinite;
+.brilho-colorido {
+    animation: arco-iris-brilho 3s infinite;
 }
 
-@keyframes rainbow-glow {
+@keyframes arco-iris-brilho {
     0% { filter: drop-shadow(0 0 10px #FF0000); }
     33% { filter: drop-shadow(0 0 10px #00FF00); }
     66% { filter: drop-shadow(0 0 10px #0000FF); }
     100% { filter: drop-shadow(0 0 10px #FF0000); }
-}
-
-/* ========= NOVOS ESTILOS ADICIONADOS ========= */
-/* Feedback de atualização (não altera estrutura existente) */
-#live-feedback {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.9);
-    color: #00ff88;
-    padding: 12px 25px;
-    border-radius: 8px;
-    font-size: 24px;
-    border: 2px solid #00ff88;
-    box-shadow: 0 0 15px rgba(0,255,136,0.5);
-    z-index: 1000;
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
 }
