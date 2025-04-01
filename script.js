@@ -28,6 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
         MESSAGES: 5000
     };
 
+    // ✅ Sistema de fallback para elementos críticos
+    const safeElements = {
+        getProgressBar: () => document.getElementById('progressBar') || console.error('Elemento progressBar não encontrado'),
+        getLikeText: () => document.getElementById('likeText') || console.error('Elemento likeText não encontrado'),
+        getGemText: () => gemText || console.error('Elemento gemText não encontrado')
+    };
+
     // 🔄 Rotação de mensagens (mantida integralmente)
     const rotateMessages = () => {
         messages.forEach(msg => msg.classList.remove('active'));
@@ -50,13 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🆕 Função de verificação programada
     const shouldFullCheck = () => {
         const now = new Date();
-        return now.getMinutes() % 30 === 0; // Verificação completa a cada 30min
+        return now.getMinutes() % 30 === 0;
     };
 
-    // ✨ getLiveVideoId modificado (Live API + otimização)
+    // ✨ getLiveVideoId modificado
     const getLiveVideoId = async () => {
         try {
-            // Verificação econômica da live cacheada
             if(cachedVideoId) {
                 const check = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${cachedVideoId}&key=${apiKeys[keyIndex]}`);
                 if(check.ok) {
@@ -66,10 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // ⚡ Só faz busca completa em horários específicos
             if(!shouldFullCheck()) return cachedVideoId;
 
-            // 🆕 Usando Live API oficial (5 unidades)
             const response = await fetch(`https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id&broadcastStatus=active&key=${apiKeys[keyIndex]}`);
             quotaUsage.search += 5;
             
@@ -90,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ⚡ updateLikes mantido com nova lógica
+    // ⚡ updateLikes com verificações de elementos
     const updateLikes = async () => {
         try {
             const VIDEO_ID = await getLiveVideoId();
@@ -98,8 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if(!VIDEO_ID) {
                 if(isLiveActive) {
                     meta = 100;
-                    document.getElementById("progressBar").style.width = "0%";
-                    document.getElementById("likeText").textContent = "00000 / 100";
+                    safeElements.getProgressBar().style.width = "0%";
+                    safeElements.getLikeText().textContent = "00000 / 100";
                 }
                 isLiveActive = false;
                 return;
@@ -126,12 +130,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if(likes !== lastLikeCount) {
                 lastLikeCount = likes;
-                document.getElementById("progressBar").style.width = `${Math.min((likes/meta)*100, 100)}%`;
-                document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
+                safeElements.getProgressBar().style.width = `${Math.min((likes/meta)*100, 100)}%`;
+                safeElements.getLikeText().textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
                 if(likes >= meta) {
                     meta += 100;
-                    gemText.innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" 
+                    safeElements.getGemText().innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" 
                         style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;"> ${meta}`;
                 }
             }
@@ -164,9 +168,19 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLikes();
     messages[0].classList.add('active');
 
-    // 🧮 Monitor de quotas atualizado
+    // ✅ Verificação final de elementos
+    window.onload = function() {
+        if (!document.querySelector('#messageBox') || messages.length === 0) {
+            console.error('Elementos críticos não encontrados! Verifique:');
+            console.log('1. Inclusão do script no HTML');
+            console.log('2. IDs e classes no HTML: progressBar, likeText, messageBox');
+            console.log('3. Caching (Ctrl+F5 para forçar reload)');
+        }
+    };
+
+    // 🧮 Monitor de quotas
     setInterval(() => {
-        const total = (quotaUsage.search * 5) + quotaUsage.video; // Custo ajustado
+        const total = (quotaUsage.search * 5) + quotaUsage.video;
         console.log(`Uso de quotas: ${total}/10,000 (${(total/100).toFixed(1)}%)`);
     }, 3600000);
 });
