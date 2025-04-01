@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 🔄 Estrutura original mantida
     const apiKeys = [
-        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ",
-        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
-        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4"
+        "AIzaSyCYGP-aCD8xO3sW3KzDhbLbit0uWsCMfrw",
+        "AIzaSyDpRqDDaVL9KdFWUwHrfq2ooLPTILmLhio",
+        "AIzaSyA30bs5rQ5EQx25KjBfUcYygrHeVWrXDAs"
     ];
     
     const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
@@ -22,10 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastLikeCount = 0;
     let quotaUsage = { search: 0, video: 0 };
     const INTERVALS = {
-        LIVE_CHECK: 1800000,    // 30 minutos (30*60*1000)
-        ACTIVE_MODE: 120000,     // 2 minutos (2*60*1000)
-        INACTIVE_MODE: 3600000, // 1 hora (60*60*1000)
-        MESSAGES: 5000          // 5 segundos
+        LIVE_CHECK: 1800000,
+        ACTIVE_MODE: 120000,
+        INACTIVE_MODE: 3600000,
+        MESSAGES: 5000
     };
 
     // 🔄 Rotação de mensagens (mantida integralmente)
@@ -47,7 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ✨ getLiveVideoId otimizado
+    // 🆕 Função de verificação programada
+    const shouldFullCheck = () => {
+        const now = new Date();
+        return now.getMinutes() % 30 === 0; // Verificação completa a cada 30min
+    };
+
+    // ✨ getLiveVideoId modificado (Live API + otimização)
     const getLiveVideoId = async () => {
         try {
             // Verificação econômica da live cacheada
@@ -60,9 +66,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            console.log(`Verificação completa (${keyIndex + 1})`);
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${apiKeys[keyIndex]}`);
-            quotaUsage.search += 100;
+            // ⚡ Só faz busca completa em horários específicos
+            if(!shouldFullCheck()) return cachedVideoId;
+
+            // 🆕 Usando Live API oficial (5 unidades)
+            const response = await fetch(`https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id&broadcastStatus=active&key=${apiKeys[keyIndex]}`);
+            quotaUsage.search += 5;
             
             if(response.status === 403 || response.status === 400) {
                 errorCount[403]++;
@@ -71,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
-            cachedVideoId = data?.items?.[0]?.id?.videoId || null;
+            cachedVideoId = data?.items?.[0]?.id || null;
             return cachedVideoId;
 
         } catch(error) {
@@ -81,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ⚡ updateLikes com novos intervalos
+    // ⚡ updateLikes mantido com nova lógica
     const updateLikes = async () => {
         try {
             const VIDEO_ID = await getLiveVideoId();
@@ -133,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ✅ Controle de intervalos
+    // ✅ Controle de intervalos mantido
     let updateInterval = setInterval(updateLikes, INTERVALS.INACTIVE_MODE);
     
     const checkLiveStatus = () => {
@@ -149,15 +158,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Seus intervalos originais ajustados
+    // Intervalos originais preservados
     setInterval(checkLiveStatus, INTERVALS.LIVE_CHECK);
     setInterval(rotateMessages, INTERVALS.MESSAGES);
     updateLikes();
     messages[0].classList.add('active');
 
-    // 🧮 Monitor de quotas
+    // 🧮 Monitor de quotas atualizado
     setInterval(() => {
-        const total = (quotaUsage.search * 100) + quotaUsage.video;
+        const total = (quotaUsage.search * 5) + quotaUsage.video; // Custo ajustado
         console.log(`Uso de quotas: ${total}/10,000 (${(total/100).toFixed(1)}%)`);
     }, 3600000);
 });
