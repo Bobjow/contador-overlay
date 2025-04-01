@@ -30,6 +30,15 @@
             </div>
         </div>
     </div>
+
+    <!-- ✅ Filtro SVG para efeito gooey (adicionado no final) -->
+    <svg style="position: absolute; width: 0; height: 0;">
+        <filter id="goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+            <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" />
+        </filter>
+    </svg>
+
     <script src="script.js"></script>
 </body>
 </html>
