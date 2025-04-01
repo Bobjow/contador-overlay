@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 🔄 Chaves mantidas na mesma estrutura
+    // 🔄 Estrutura original mantida
     const apiKeys = [
         "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ",
         "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
@@ -12,58 +12,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const messages = document.querySelectorAll('.msg');
     const gemText = document.querySelector('#messageBox .msg:last-child');
     
-    // 🔄 Variáveis originais mantidas
+    // 🔄 Variáveis originais
     let keyIndex = 0;
     let isLiveActive = false;
     let errorCount = { 403: 0, other: 0 };
 
-    // ✅ Variáveis novas para otimização
+    // ✅ Novas variáveis para otimização
     let cachedVideoId = null;
     let lastLikeCount = 0;
-    let quotaCounter = { search: 0, video: 0 };
-
-    // 📝 Novo sistema de logs (mantido)
-    const log = (type, message) => {
-        const timestamp = new Date().toLocaleTimeString();
-        console.log(`[${timestamp}] [${type}] ${message} (Chave: ${keyIndex + 1})`);
+    let quotaUsage = { search: 0, video: 0 };
+    const INTERVALS = {
+        LIVE_CHECK: 1800000,    // 30 minutos (30*60*1000)
+        ACTIVE_MODE: 120000,     // 2 minutos (2*60*1000)
+        INACTIVE_MODE: 3600000, // 1 hora (60*60*1000)
+        MESSAGES: 5000          // 5 segundos
     };
 
-    // 🔄 Funções originais mantidas
-    const rotateMessages = () => { /* ... mantido igual ... */ };
+    // 🔄 Rotação de mensagens (mantida integralmente)
+    const rotateMessages = () => {
+        messages.forEach(msg => msg.classList.remove('active'));
+        messages[currentMessage].classList.add('active');
+        currentMessage = (currentMessage + 1) % 3;
+    };
 
-    const rotateKey = () => { /* ... mantido igual ... */ };
-
-    // 🆕 Verificação de live otimizada
-    const checkExistingLive = async () => {
-        try {
-            if(!cachedVideoId) return null;
-            
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${cachedVideoId}&key=${apiKeys[keyIndex]}`);
-            if(response.ok) {
-                quotaCounter.video++;
-                const data = await response.json();
-                return data.items?.[0]?.liveStreamingDetails?.isLiveNow ? cachedVideoId : null;
-            }
-            return null;
-        } catch {
-            return null;
+    // 🔄 Rotação de chaves (mantida)
+    const rotateKey = () => {
+        const oldKey = keyIndex;
+        keyIndex = (keyIndex + 1) % apiKeys.length;
+        console.log(`Rotacionando para chave: ${keyIndex + 1}`);
+        
+        if(oldKey === apiKeys.length - 1) {
+            errorCount[403] = 0;
+            console.warn("Todas as chaves testadas - Reiniciando ciclo");
         }
     };
 
-    // ✨ getLiveVideoId modificado
+    // ✨ getLiveVideoId otimizado
     const getLiveVideoId = async () => {
         try {
-            // Primeiro verifica a live existente (custo baixo)
-            const existingLive = await checkExistingLive();
-            if(existingLive) return existingLive;
+            // Verificação econômica da live cacheada
+            if(cachedVideoId) {
+                const check = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${cachedVideoId}&key=${apiKeys[keyIndex]}`);
+                if(check.ok) {
+                    quotaUsage.video++;
+                    const data = await check.json();
+                    if(data.items?.[0]?.liveStreamingDetails?.isLiveNow) return cachedVideoId;
+                }
+            }
 
-            log('REQUEST', `Buscando live... [${CHANNEL_ID}]`);
+            console.log(`Verificação completa (${keyIndex + 1})`);
             const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${apiKeys[keyIndex]}`);
-            
-            quotaCounter.search += 100; // Cada search custa 100 quotas
+            quotaUsage.search += 100;
             
             if(response.status === 403 || response.status === 400) {
-                // ... mantido igual ...
+                errorCount[403]++;
+                rotateKey();
+                return await getLiveVideoId();
             }
 
             const data = await response.json();
@@ -71,82 +75,89 @@ document.addEventListener('DOMContentLoaded', () => {
             return cachedVideoId;
 
         } catch(error) {
-            // ... mantido igual ...
+            console.error("Erro na busca:", error);
+            errorCount.other++;
+            return null;
         }
     };
 
-    // ⚡ updateLikes otimizado
+    // ⚡ updateLikes com novos intervalos
     const updateLikes = async () => {
         try {
             const VIDEO_ID = await getLiveVideoId();
             
             if(!VIDEO_ID) {
-                // ... mantido igual ...
+                if(isLiveActive) {
+                    meta = 100;
+                    document.getElementById("progressBar").style.width = "0%";
+                    document.getElementById("likeText").textContent = "00000 / 100";
+                }
+                isLiveActive = false;
+                return;
             }
 
-            // 🆕 Pula requisição se não houver mudanças
-            log('REQUEST', `Buscando estatísticas [${VIDEO_ID}]`);
-            const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${VIDEO_ID}&key=${apiKeys[keyIndex]}`);
-            
-            quotaCounter.video++; // Cada video custa 1 quota
+            if(!isLiveActive) {
+                isLiveActive = true;
+                meta = 100;
+                console.log("Live ativa - Modo 2min");
+                clearInterval(updateInterval);
+                updateInterval = setInterval(updateLikes, INTERVALS.ACTIVE_MODE);
+            }
 
+            const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${VIDEO_ID}&key=${apiKeys[keyIndex]}`);
+            quotaUsage.video++;
+            
             if(statsResponse.status === 403) {
-                // ... mantido igual ...
+                rotateKey();
+                return updateLikes();
             }
 
             const statsData = await statsResponse.json();
             const likes = parseInt(statsData?.items?.[0]?.statistics?.likeCount) || 0;
             
-            // 🆕 Atualiza apenas se houver mudança
-            if(likes === lastLikeCount) {
-                log('CACHE', 'Likes inalterados - Pulando atualização');
-                return;
+            if(likes !== lastLikeCount) {
+                lastLikeCount = likes;
+                document.getElementById("progressBar").style.width = `${Math.min((likes/meta)*100, 100)}%`;
+                document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
+
+                if(likes >= meta) {
+                    meta += 100;
+                    gemText.innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" 
+                        style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;"> ${meta}`;
+                }
             }
-            
-            lastLikeCount = likes;
-            
-            // ... restante mantido igual ...
 
         } catch(error) {
-            // ... mantido igual ...
+            console.error("Erro crítico:", error);
+            if(errorCount.other++ > 10) location.reload();
         }
     };
 
-    // 🆕 Controle inteligente de intervalos
-    const manageIntervals = () => {
-        clearInterval(updateInterval);
-        updateInterval = setInterval(() => {
-            // Ajusta dinamicamente baseado no status
-            if(isLiveActive) {
-                updateLikes();
-                setTimeout(updateLikes, 5000); // Verificação rápida após mudança
-            } else {
-                updateLikes();
-                checkLiveStatus();
-            }
-        }, isLiveActive ? 15000 : 30000); // Intervalos otimizados
-    };
-
-    // 🔄 checkLiveStatus modificado
+    // ✅ Controle de intervalos
+    let updateInterval = setInterval(updateLikes, INTERVALS.INACTIVE_MODE);
+    
     const checkLiveStatus = () => {
-        if(quotaCounter.search >= 5000) { // Alerta de quota
-            log('QUOTA', `Uso atual: Search=${quotaCounter.search} | Video=${quotaCounter.video}`);
-        }
-        
         getLiveVideoId().then(videoId => {
             if(videoId && !isLiveActive) {
-                log('SYSTEM', 'Ajustando intervalo para modo ativo');
-                isLiveActive = true;
-                manageIntervals();
+                clearInterval(updateInterval);
+                updateInterval = setInterval(updateLikes, INTERVALS.ACTIVE_MODE);
+                updateLikes();
+            } else if(!videoId) {
+                clearInterval(updateInterval);
+                updateInterval = setInterval(updateLikes, INTERVALS.INACTIVE_MODE);
             }
         });
     };
 
-    // ⚡ Inicialização modificada
-    let updateInterval;
-    manageIntervals();
-    setInterval(checkLiveStatus, 30000);
-    setInterval(rotateMessages, 5000);
+    // Seus intervalos originais ajustados
+    setInterval(checkLiveStatus, INTERVALS.LIVE_CHECK);
+    setInterval(rotateMessages, INTERVALS.MESSAGES);
     updateLikes();
     messages[0].classList.add('active');
+
+    // 🧮 Monitor de quotas
+    setInterval(() => {
+        const total = (quotaUsage.search * 100) + quotaUsage.video;
+        console.log(`Uso de quotas: ${total}/10,000 (${(total/100).toFixed(1)}%)`);
+    }, 3600000);
 });
