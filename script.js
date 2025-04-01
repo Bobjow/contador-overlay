@@ -17,54 +17,61 @@ document.addEventListener('DOMContentLoaded', () => {
     let isLiveActive = false;
     let errorCount = { 403: 0, other: 0 };
 
+    // 📝 Novo sistema de logs
+    const log = (type, message) => {
+        const timestamp = new Date().toLocaleTimeString();
+        console.log(`[${timestamp}] [${type}] ${message} (Chave: ${keyIndex + 1})`);
+    };
+
     const rotateMessages = () => {
         messages.forEach(msg => msg.classList.remove('active'));
         messages[currentMessage].classList.add('active');
         currentMessage = (currentMessage + 1) % 3;
     };
 
-    // ✅ Rotação melhorada mantendo sua lógica
     const rotateKey = () => {
         const oldKey = keyIndex;
         keyIndex = (keyIndex + 1) % apiKeys.length;
-        console.log(`Rotacionando para chave: ${keyIndex + 1}`);
+        log('ROTATION', `Alternando para chave ${keyIndex + 1} (${apiKeys[keyIndex].substr(0, 12)}...)`); // 📝
         
         if(oldKey === apiKeys.length - 1) {
             errorCount[403] = 0;
-            console.warn("Todas as chaves testadas - Reiniciando ciclo");
+            log('WARNING', 'Ciclo completo de chaves reiniciado'); // 📝
         }
     };
 
-    // ✅ getLiveVideoId com tratamento seguro
     const getLiveVideoId = async () => {
         try {
-            console.log(`Usando chave ${keyIndex + 1} (${apiKeys[keyIndex].substr(0, 12)}...)`);
+            log('REQUEST', `Buscando live... [${CHANNEL_ID}]`); // 📝
             
             const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=id&channelId=${CHANNEL_ID}&eventType=live&type=video&key=${apiKeys[keyIndex]}`);
             
             if(response.status === 403 || response.status === 400) {
+                const errorData = await response.json().catch(() => ({}));
+                log('ERROR', `API Error: ${errorData.error?.message || 'Unknown error'}`); // 📝
                 errorCount[403]++;
                 rotateKey();
-                return await getLiveVideoId(); // Tenta novamente com nova chave
+                return await getLiveVideoId();
             }
 
             const data = await response.json();
+            log('RESPONSE', `Live encontrada: ${data?.items?.[0]?.id?.videoId ? 'Sim' : 'Não'}`); // 📝
             return data?.items?.[0]?.id?.videoId || null;
 
         } catch(error) {
-            console.error("Erro na busca da live:", error);
+            log('CRITICAL', `Falha na busca: ${error.message}`); // 📝
             errorCount.other++;
             return null;
         }
     };
 
-    // ✅ updateLikes com controle refinado
     const updateLikes = async () => {
         try {
             const VIDEO_ID = await getLiveVideoId();
             
             if(!VIDEO_ID) {
                 if(isLiveActive) {
+                    log('STATUS', 'Live encerrada - Resetando sistema'); // 📝
                     meta = 100;
                     document.getElementById("progressBar").style.width = "0%";
                     document.getElementById("likeText").textContent = "00000 / 100";
@@ -74,45 +81,52 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if(!isLiveActive) {
+                log('STATUS', 'Nova live detectada - Iniciando monitoramento'); // 📝
                 isLiveActive = true;
                 meta = 100;
-                console.log("Live ativa - Sistema reiniciado!");
                 clearInterval(updateInterval);
                 updateInterval = setInterval(updateLikes, 10000);
             }
 
+            log('REQUEST', `Buscando estatísticas [${VIDEO_ID}]`); // 📝
             const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${VIDEO_ID}&key=${apiKeys[keyIndex]}`);
             
             if(statsResponse.status === 403) {
+                log('ERROR', 'Quota excedida na chave atual'); // 📝
                 rotateKey();
-                return updateLikes(); // Repete com nova chave
+                return updateLikes();
             }
 
             const statsData = await statsResponse.json();
             const likes = parseInt(statsData?.items?.[0]?.statistics?.likeCount) || 0;
+            log('DATA', `Likes recebidos: ${likes} | Meta atual: ${meta}`); // 📝
 
-            // ✅ UI original mantida
             document.getElementById("progressBar").style.width = `${Math.min((likes/meta)*100, 100)}%`;
             document.getElementById("likeText").textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
             if(likes >= meta) {
+                log('META', `Nova meta definida: ${meta + 100}`); // 📝
                 meta += 100;
                 gemText.innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" 
                     style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;"> ${meta}`;
             }
 
         } catch(error) {
-            console.error("Erro crítico:", error);
-            if(errorCount.other++ > 10) location.reload();
+            log('CRITICAL', `Erro geral: ${error.message} (${errorCount.other + 1}/10)`); // 📝
+            if(errorCount.other++ > 10) {
+                log('SYSTEM', 'Reiniciando aplicação...'); // 📝
+                location.reload();
+            }
         }
     };
 
-    // ✅ Intervalos otimizados mantendo sua lógica
     let updateInterval = setInterval(updateLikes, 30000);
     
     const checkLiveStatus = () => {
+        log('CHECK', 'Verificando status da live'); // 📝
         getLiveVideoId().then(videoId => {
             if(videoId && !isLiveActive) {
+                log('SYSTEM', 'Ajustando intervalo para modo ativo'); // 📝
                 clearInterval(updateInterval);
                 updateInterval = setInterval(updateLikes, 10000);
                 updateLikes();
@@ -120,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Seus intervalos originais mantidos
     setInterval(checkLiveStatus, 30000);
     setInterval(rotateMessages, 5000);
     updateLikes();
