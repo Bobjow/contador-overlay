@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 🔄 Chaves mantidas na mesma estrutura
     const apiKeys = [
-        "AIzaSyD0RYlWMxtWdqBU7-rnvIh2c-XLVGsgvxQ",
-        "AIzaSyA8gSkzWGn9YhXoLjRPcdwuh2ESyt3eUJE",
-        "AIzaSyAUs6SFHwoQXbUcwaB7ll2vJNl0tiATWL4"
+        "AIzaSyCYGP-aCD8xO3sW3KzDhbLbit0uWsCMfrw",
+        "AIzaSyDpRqDDaVL9KdFWUwHrfq2ooLPTILmLhio",
+        "AIzaSyA30bs5rQ5EQx25KjBfUcYygrHeVWrXDAs"
     ];
     
     const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
@@ -20,8 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastLikeCount = 0;
     let quotaUsage = { search: 0, video: 0 };
     const INTERVALS = {
-        LIVE_CHECK: 1800000,    // 30 minutos
-        ACTIVE_MODE: 10000,     // 10 segundos
+        LIVE_CHECK: 30000,     // 30 segundos (alterado para detecção imediata)
+        ACTIVE_MODE: 10000,    // 10 segundos
         INACTIVE_MODE: 30000,   // 30 segundos
         MESSAGES: 5000          // 5 segundos
     };
@@ -58,42 +58,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 🆕 Verificação programada
+    // 🆕 Verificação programada (modificado para checks mais frequentes)
     const shouldFullCheck = () => {
         const now = new Date();
-        return now.getMinutes() % 30 === 0;
+        return now.getMinutes() % 5 === 0; // Verificação a cada 5 minutos
     };
 
-    // 🔍 getLiveVideoId otimizado
+    // 🔍 getLiveVideoId otimizado (combinação de métodos para detecção rápida)
     const getLiveVideoId = async () => {
         try {
-            if(cachedVideoId) {
-                log('CACHE', `Verificando video em cache: ${cachedVideoId}`);
-                const check = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${cachedVideoId}&key=${apiKeys[keyIndex]}`);
-                if(check.ok) {
-                    quotaUsage.video++;
-                    const data = await check.json();
-                    if(data.items?.[0]?.liveStreamingDetails?.isLiveNow) return cachedVideoId;
+            // Primeira verificação rápida
+            const quickResponse = await fetch(
+                `https://www.googleapis.com/youtube/v3/search?` +
+                `part=id&channelId=${CHANNEL_ID}&` +
+                `eventType=live&type=video&` +
+                `key=${apiKeys[keyIndex]}`
+            );
+            
+            if(quickResponse.ok) {
+                const quickData = await quickResponse.json();
+                const videoId = quickData?.items?.[0]?.id?.videoId;
+                if(videoId) {
+                    cachedVideoId = videoId;
+                    return videoId;
                 }
             }
 
-            if(!shouldFullCheck()) return cachedVideoId;
-
-            log('SEARCH', 'Busca completa na API');
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id&broadcastStatus=active&key=${apiKeys[keyIndex]}`);
-            quotaUsage.search += 5;
-            
-            if(response.status === 403 || response.status === 400) {
-                const errorData = await response.json().catch(() => ({}));
-                log('ERROR', `API Error: ${errorData.error?.message || 'Unknown error'}`);
-                errorCount[403]++;
-                rotateKey();
-                return await getLiveVideoId();
+            // Fallback para verificação completa
+            if(shouldFullCheck()) {
+                log('SEARCH', 'Busca completa na API');
+                const fullResponse = await fetch(
+                    `https://www.googleapis.com/youtube/v3/liveBroadcasts?` +
+                    `part=id&broadcastStatus=active&` +
+                    `key=${apiKeys[keyIndex]}`
+                );
+                
+                if(fullResponse.ok) {
+                    const fullData = await fullResponse.json();
+                    cachedVideoId = fullData?.items?.[0]?.id || null;
+                    return cachedVideoId;
+                }
             }
 
-            const data = await response.json();
-            cachedVideoId = data?.items?.[0]?.id || null;
-            log('RESPONSE', `Live encontrada: ${cachedVideoId ? 'Sim' : 'Não'}`);
             return cachedVideoId;
 
         } catch(error) {
@@ -103,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ⚡ updateLikes otimizado
+    // ⚡ updateLikes otimizado (mantido original com melhorias)
     const updateLikes = async () => {
         try {
             const VIDEO_ID = await getLiveVideoId();
@@ -163,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ⏱ Controle de intervalos
+    // ⏱ Controle de intervalos (ajustado para detecção rápida)
     let updateInterval = setInterval(updateLikes, INTERVALS.INACTIVE_MODE);
     
     const checkLiveStatus = () => {
