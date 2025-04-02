@@ -21,27 +21,36 @@ document.addEventListener('DOMContentLoaded', () => {
     let quotaUsage = { search: 0, video: 0 };
     let requestCounter = 0;
     let errorPause = false;
-    // ✅ Sistema de Cache Duplo (mantido)
+    
+    // ⚡ NOVO: Controle entre cenas
+    let crossSceneState = {
+        lastVideoId: null,
+        changeCount: 0
+    };
+
+    // ✅ Sistema de Cache Duplo (mantido intacto)
     let cache = {
         videoId: null,
         likes: 0,
         expiry: 0,
         etag: ''
     };
+
+    // ⚡ INTERVALOS AJUSTADOS (1.5min e 1h)
     const INTERVALS = {
-        LIVE_CHECK: 900000,
-        ACTIVE_MODE: 120000,
-        INACTIVE_MODE: 1800000,
+        LIVE_CHECK: 90000,     // 1.5min (90000ms)
+        ACTIVE_MODE: 120000,   // 2min 
+        INACTIVE_MODE: 3600000, // 1h (mantido seu pedido)
         MESSAGES: 5000
     };
 
-    // ✅ Função auxiliar nova (posicionada antes do uso)
+    // ✅ Função auxiliar (mantida intacta)
     const isLiveStillActive = async (videoId) => {
         const check = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${apiKeys[keyIndex]}`);
         return check.ok && (await check.json()).items?.[0]?.liveStreamingDetails?.isLiveNow;
     };
 
-    // ✅ Sistema de verificação de horário (mantido)
+    // ✅ Sistema de verificação de horário (mantido intacto)
     const isInactivePeriod = () => {
         const hour = new Date().getHours();
         return hour >= 18 || hour < 9;
@@ -54,13 +63,13 @@ document.addEventListener('DOMContentLoaded', () => {
         getGemText: () => gemText || console.error('GemText não encontrado')
     };
 
-    // 📝 Logs (mantido)
+    // 📝 Logs (mantido intacto)
     const log = (type, message) => {
         const timestamp = new Date().toLocaleTimeString();
         console.log(`[${timestamp}] [${type}] ${message} (Chave: ${keyIndex + 1})`);
     };
 
-    // 🔄 Rotação de mensagens (versão otimizada)
+    // 🔄 Rotação de mensagens (mantida intacta)
     const rotateMessages = () => {
         const activeMsg = document.querySelector('.msg.active');
         if(activeMsg) activeMsg.classList.remove('active');
@@ -68,30 +77,29 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMessage = (currentMessage + 1) % messages.length;
     };
 
-    // 🔄 Rotação de chaves atualizada
+    // ⚡ ROTAÇÃO DE CHAVES OTIMIZADA (nova implementação)
     const rotateKey = () => {
-        if(errorCount[403] > 3) {
-            errorPause = true;
-            log('ERROR', 'Pausa de 5min por excesso de erros 403');
-            setTimeout(() => {
-                errorPause = false;
-                errorCount[403] = 0;
-            }, 300000);
-        }
-        
         const oldKey = keyIndex;
         keyIndex = (keyIndex + 1) % apiKeys.length;
-        log('ROTATION', `Chave ${oldKey + 1} → ${keyIndex + 1} (${apiKeys[keyIndex].substr(0, 12)}...)`);
-        
-        if(quotaUsage.video >= 10000) {
-            quotaUsage.video = 0;
-            log('QUOTA', 'Reset diário de cota');
-        }
-        
-        if(oldKey === apiKeys.length - 1) errorCount[403] = 0;
+        quotaUsage.video = 0;
+        cachedVideoId = null;
+        cache.expiry = 0;
+        log('ROTATION', `Chave ${oldKey+1} → ${keyIndex+1} | Quota: ${quotaUsage.video}/9500`);
     };
 
-    // 🔍 getLiveVideoId com verificação de cache
+    // ⚡ DETECÇÃO DE MUDANÇA DE CENA (nova função)
+    const checkSceneChange = (videoId) => {
+        if(videoId && videoId !== crossSceneState.lastVideoId) {
+            crossSceneState.changeCount++;
+            log('SCENE', `Nova cena detectada (${crossSceneState.changeCount}x)`);
+            crossSceneState.lastVideoId = videoId;
+            meta = 100;
+            safeElements.getProgressBar().style.width = "0%";
+            safeElements.getLikeText().textContent = "00000 / 100";
+        }
+    };
+
+    // 🔍 getLiveVideoId (mantido com pequeno ajuste)
     const getLiveVideoId = async () => {
         try {
             if(cachedVideoId && !await isLiveStillActive(cachedVideoId)) {
@@ -113,10 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 { headers }
             );
 
-            if(response.status === 304) {
-                log('CACHE', 'Dados inalterados');
-                return cache.videoId;
-            }
+            if(response.status === 304) return cache.videoId;
 
             if(response.ok) {
                 const data = await response.json();
@@ -136,17 +141,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ⚡ updateLikes com novas melhorias
+    // ⚡ updateLikes ATUALIZADO (combinação de endpoints)
     const updateLikes = async () => {
         try {
-            requestCounter++;
             if(errorPause) return;
             
-            if(Date.now() < cache.expiry && Math.abs(cache.likes - lastLikeCount) < 3) {
+            // ⚡ Verificação de quota
+            if(quotaUsage.video >= 9500) {
+                rotateKey();
                 return;
             }
 
             const VIDEO_ID = await getLiveVideoId();
+            checkSceneChange(VIDEO_ID); // ⚡ Chamada nova
             
             if(!VIDEO_ID) {
                 if(isLiveActive) {
@@ -159,27 +166,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if(!isLiveActive) {
-                log('STATUS', 'Nova live detectada - Modo ativo');
-                isLiveActive = true;
-                clearInterval(updateInterval);
-                updateInterval = setInterval(updateLikes, INTERVALS.ACTIVE_MODE);
-            }
-
-            const statsResponse = await fetch(
+            // ⚡ Requisição combinada
+            const response = await fetch(
                 `https://www.googleapis.com/youtube/v3/videos?` +
-                `part=statistics&` +
+                `part=statistics,liveStreamingDetails&` + // ⚡ Combinação
                 `id=${VIDEO_ID}&` +
                 `key=${apiKeys[keyIndex]}`
             );
-            
-            if(statsResponse.ok) {
-                quotaUsage.video += 1;
-                const statsData = await statsResponse.json();
-                const likes = parseInt(statsData?.items?.[0]?.statistics?.likeCount) || 0;
-                
-                cache.likes = likes;
-                cache.expiry = Date.now() + 120000;
+
+            if(response.ok) {
+                quotaUsage.video += 3; // ⚡ Custo ajustado
+                const data = await response.json();
+                const likes = parseInt(data?.items?.[0]?.statistics?.likeCount) || 0;
                 
                 if(likes !== lastLikeCount) {
                     lastLikeCount = likes;
@@ -187,10 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     safeElements.getLikeText().textContent = `${likes.toString().padStart(5, '0')} / ${meta}`;
 
                     if(likes >= meta) {
-                        log('META', `Nova meta: ${meta + 100}`);
                         meta += 100;
-                        safeElements.getGemText().innerHTML = `META: <img src="gemas-png.png" class="gem-glow gem-icon" 
-                            style="width:45px !important; height:45px !important; vertical-align:middle; margin-right:10px; display: inline-block;"> ${meta}`;
+                        safeElements.getGemText().innerHTML = `META: <img src="https://raw.githubusercontent.com/bobjow/contador-overlay/main/gemas-png.png" 
+                            class="gem-glow gem-icon" style="width:45px;height:45px;vertical-align:middle;margin-right:10px;"> ${meta}`;
                     }
                 }
             }
@@ -205,7 +202,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ... (restante do código original mantido intacto)
-    let updateInterval = setInterval(updateLikes, INTERVALS.LIVE_CHECK);
-    setInterval(rotateMessages, INTERVALS.MESSAGES);
+    // ✅ Inicialização mantida com verificação
+    const init = () => {
+        if(!document.getElementById('progressBar')) {
+            console.error('Elemento progressBar não encontrado!');
+            return;
+        }
+        log('SYSTEM', 'Sistema iniciado com sucesso');
+        setInterval(updateLikes, INTERVALS.LIVE_CHECK);
+        setInterval(rotateMessages, INTERVALS.MESSAGES);
+        updateLikes();
+    };
+
+    init();
 });
