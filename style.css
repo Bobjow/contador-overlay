@@ -97,7 +97,7 @@
 #likeText {
     font-size: 60px;
     overflow: hidden;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
     position: relative;
     top: 25px;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
@@ -136,6 +136,7 @@
     pointer-events: none;
     will-change: opacity, transform;
     transform: translateY(10px) scale(0.98);
+    letter-spacing: 4px; /* Adicionado espaçamento entre letras das mensagens */
 }
 
 .msg.active {
