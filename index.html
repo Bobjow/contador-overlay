@@ -8,18 +8,20 @@
 </head>
 <body>
     <div id="likeCounter">
+        <h2 class="sr-only">Contador de Likes</h2>
         <div id="progressBarContainer">
             <div id="progressBar"></div>
         </div>
         <span id="likeSymbol">👍</span>
         <div id="likeTextContainer">
-            <span id="likeText">0 / 100</span>
+            <span id="likeText" aria-live="polite">0 / 100</span>
         </div>
         <div id="messageBox">
             <div class="msg active">DEIXA O LIKE</div>
             <div class="msg">INSCREVA-SE</div>
             <div class="msg">META: 
                 <img src="https://raw.githubusercontent.com/bobjow/contador-overlay/main/gemas-png.png?v=1"  
+                     alt="Ícone de Gemas Brilhantes"
                      class="gem-glow gem-icon"
                      style="width:45px !important; 
                             height:45px !important;
