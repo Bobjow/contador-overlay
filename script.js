@@ -1,9 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 🔄 Chaves mantidas na mesma estrutura
+    // 🔄 Chave única mantendo a estrutura
     const apiKeys = [
-        "***************************************",
-        "***************************************",
-        "***************************************"
+        "SUA_CHAVE_AQUI" // ⚠️ Substitua pela sua chave
     ];
     
     const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
@@ -12,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messages = document.querySelectorAll('.msg');
     const gemText = document.querySelector('#messageBox .msg:last-child');
     
-    // 🔄 Variáveis originais + novas melhorias
+    // 🔄 Variáveis originais mantidas intactas
     let keyIndex = 0;
     let isLiveActive = false;
     let errorCount = { 403: 0, other: 0 };
@@ -22,13 +20,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let requestCounter = 0;
     let errorPause = false;
     
-    // ⚡ NOVO: Controle entre cenas
+    // ⚡ Controle entre cenas (original)
     let crossSceneState = {
         lastVideoId: null,
         changeCount: 0
     };
 
-    // ✅ Sistema de Cache Duplo (mantido intacto)
+    // ✅ Sistema de Cache Duplo (idêntico)
     let cache = {
         videoId: null,
         likes: 0,
@@ -36,40 +34,40 @@ document.addEventListener('DOMContentLoaded', () => {
         etag: ''
     };
 
-    // ⚡ INTERVALOS AJUSTADOS (1.5min e 1h)
+    // ⚡ Intervalos originais preservados
     const INTERVALS = {
-        LIVE_CHECK: 5400000, // 1h30min (5400000ms)
-        ACTIVE_MODE: 120000,   // 2min 
-        INACTIVE_MODE: 3600000, // 1h (mantido seu pedido)
+        LIVE_CHECK: 5400000,
+        ACTIVE_MODE: 120000,
+        INACTIVE_MODE: 3600000,
         MESSAGES: 5000
     };
 
-    // ✅ Função auxiliar (mantida intacta)
+    // ✅ Função auxiliar (código original)
     const isLiveStillActive = async (videoId) => {
         const check = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${apiKeys[keyIndex]}`);
         return check.ok && (await check.json()).items?.[0]?.liveStreamingDetails?.isLiveNow;
     };
 
-    // ✅ Sistema de verificação de horário (mantido intacto)
+    // ✅ Verificação de horário (inalterado)
     const isInactivePeriod = () => {
         const hour = new Date().getHours();
         return hour >= 18 || hour < 13;
     };
 
-    // ✅ Sistema de fallback (mantido intacto)
+    // ✅ Sistema de fallback (mesmo código)
     const safeElements = {
         getProgressBar: () => document.getElementById('progressBar') || console.error('ProgressBar não encontrado'),
         getLikeText: () => document.getElementById('likeText') || console.error('LikeText não encontrado'),
         getGemText: () => gemText || console.error('GemText não encontrado')
     };
 
-    // 📝 Logs (mantido intacto)
+    // 📝 Logs (idêntico)
     const log = (type, message) => {
         const timestamp = new Date().toLocaleTimeString();
         console.log(`[${timestamp}] [${type}] ${message} (Chave: ${keyIndex + 1})`);
     };
 
-    // 🔄 Rotação de mensagens (mantida intacta)
+    // 🔄 Rotação de mensagens (original)
     const rotateMessages = () => {
         const activeMsg = document.querySelector('.msg.active');
         if(activeMsg) activeMsg.classList.remove('active');
@@ -77,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMessage = (currentMessage + 1) % messages.length;
     };
 
-    // ⚡ ROTAÇÃO DE CHAVES OTIMIZADA (nova implementação)
+    // ⚡ Rotação otimizada (mantida com lógica original)
     const rotateKey = () => {
         const oldKey = keyIndex;
         keyIndex = (keyIndex + 1) % apiKeys.length;
@@ -87,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         log('ROTATION', `Chave ${oldKey+1} → ${keyIndex+1} | Quota: ${quotaUsage.video}/9500`);
     };
 
-    // ⚡ DETECÇÃO DE MUDANÇA DE CENA (nova função)
+    // ⚡ Detecção de cena (código original)
     const checkSceneChange = (videoId) => {
         if(videoId && videoId !== crossSceneState.lastVideoId) {
             crossSceneState.changeCount++;
@@ -99,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 🔍 getLiveVideoId (mantido com pequeno ajuste)
+    // 🔍 getLiveVideoId (mesma implementação)
     const getLiveVideoId = async () => {
         try {
             if(cachedVideoId && !await isLiveStillActive(cachedVideoId)) {
@@ -141,19 +139,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ⚡ updateLikes ATUALIZADO (combinação de endpoints)
+    // ⚡ updateLikes (código original preservado)
     const updateLikes = async () => {
         try {
             if(errorPause) return;
             
-            // ⚡ Verificação de quota
             if(quotaUsage.video >= 9500) {
                 rotateKey();
                 return;
             }
 
             const VIDEO_ID = await getLiveVideoId();
-            checkSceneChange(VIDEO_ID); // ⚡ Chamada nova
+            checkSceneChange(VIDEO_ID);
             
             if(!VIDEO_ID) {
                 if(isLiveActive) {
@@ -166,16 +163,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // ⚡ Requisição combinada
             const response = await fetch(
                 `https://www.googleapis.com/youtube/v3/videos?` +
-                `part=statistics,liveStreamingDetails&` + // ⚡ Combinação
+                `part=statistics,liveStreamingDetails&` +
                 `id=${VIDEO_ID}&` +
                 `key=${apiKeys[keyIndex]}`
             );
 
             if(response.ok) {
-                quotaUsage.video += 3; // ⚡ Custo ajustado
+                quotaUsage.video += 3;
                 const data = await response.json();
                 const likes = parseInt(data?.items?.[0]?.statistics?.likeCount) || 0;
                 
@@ -202,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ✅ Inicialização mantida com verificação
+    // ✅ Inicialização (idêntica)
     const init = () => {
         if(!document.getElementById('progressBar')) {
             console.error('Elemento progressBar não encontrado!');
