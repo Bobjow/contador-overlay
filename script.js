@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ✅ Sistema de verificação de horário (mantido intacto)
     const isInactivePeriod = () => {
         const hour = new Date().getHours();
-        return hour >= 18 || hour < 9;
+        return hour >= 18 || hour < 13;
     };
 
     // ✅ Sistema de fallback (mantido intacto)
