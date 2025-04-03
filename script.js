@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ⚡ INTERVALOS AJUSTADOS (1.5min e 1h)
     const INTERVALS = {
-        LIVE_CHECK: 90000,     // 1.5min (90000ms)
+        LIVE_CHECK: 5400000, // 1h30min (5400000ms)
         ACTIVE_MODE: 120000,   // 2min 
         INACTIVE_MODE: 3600000, // 1h (mantido seu pedido)
         MESSAGES: 5000
