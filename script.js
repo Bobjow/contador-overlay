@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 🔄 Chaves mantidas na mesma estrutura
     const apiKeys = [
-        "AIzaSyCYGP-aCD8xO3sW3KzDhbLbit0uWsCMfrw",
-        "AIzaSyDpRqDDaVL9KdFWUwHrfq2ooLPTILmLhio",
-        "AIzaSyA30bs5rQ5EQx25KjBfUcYygrHeVWrXDAs"
+        "***************************************",
+        "***************************************",
+        "***************************************"
     ];
     
     const CHANNEL_ID = "UC_5voh8cFDi0JIX3mAzLbng";
